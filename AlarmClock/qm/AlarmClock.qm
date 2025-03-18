@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<model version="5.1.1" links="0">
+ <framework name="qpn"/>
+ <package name="HSMs" stereotype="0x02">
+  <class name="AlarmClock" superclass="qpn::QHsm">
+   <attribute name="Curr_time" type="uint32_t" visibility="0x02" properties="0x01"/>
+   <attribute name="Temp_time" type="uint32_t" visibility="0x02" properties="0x00"/>
+   <attribute name="Alarm_time" type="uint32_t" visibility="0x02" properties="0x00"/>
+   <attribute name="Alarm_status" type="uint8_t" visibility="0x02" properties="0x00"/>
+   <attribute name="Time_mode" type="uint8_t" visibility="0x02" properties="0x00"/>
+   <attribute name="Obj" type="AlarmClock" visibility="0x02" properties="0x01"/>
+   <operation name="Get_Curr_Time" type="uint32_t" visibility="0x00" properties="0x01">
+    <documentation>This returns the value of curr_time</documentation>
+    <code>        uint8_t save_sreg= SREG;
+        uint32_t temp;
+        cli();
+        temp=AlarmClock_Curr_time
+        SREG=save_sreg;
+        return temp;</code>
+   </operation>
+   <operation name="Update_Curr_Time" type="void" visibility="0x00" properties="0x01">
+    <code>    if(++AlarmClock_Curr_time==MAX_TIME){
+        AlarmClock_Curr_time=0;
+    }</code>
+   </operation>
+   <operation name="Set_Curr_Time" type="void" visibility="0x00" properties="0x01">
+    <parameter name="New_Curr_Time" type="uint32_t"/>
+    <code>    uint8_t save_sreg= SREG;
+    cli();
+    AlarmClock_Curr_time=New_Curr_Time;
+    SREG=save_sreg;</code>
+   </operation>
+   <operation name="display_curr_time" type="void" visibility="0x00" properties="0x00">
+    <parameter name="row" type="uint8_t"/>
+    <parameter name="col" type="uint8_t"/>
+    <code>        String time_as_string;
+        uint32_t time_;
+        uint32_t time24h = AlarmClock_Get_Curr_Time()/10; //convert to number of seconds
+        uint8_t ss = time24h % 10U;       //extract sub-second to append later
+        time_ = (me-&gt;Time_mode == MODE_24H)?time24h:convert_24hformat_to_12h(time24h);
+        time_as_string = integertime_to_string(time_); //hh:mm:ss
+        time_as_string.concat('.');
+        time_as_string.concat(ss);
+
+        /*if mode is 12H , concatenate  am/pm information */
+        if(me-&gt;Time_mode == MODE_12H){
+            time_as_string.concat(' ');
+            time_as_string.concat(get_am_or_pm(time24h));
+        }
+
+        display_write(time_as_string,row,col);</code>
+   </operation>
+   <statechart properties="0x01">
+    <initial target="../1/2">
+     <action>AlarmClock_Set_Curr_Time(INITIAL_CURR_TIME);
+me-&gt;Alarm_time= INITIAL_ALARM_TIME;
+me-&gt;Time_mode= MODE_12H;
+me-&gt;Alram_status=ALARM_OFF;</action>
+     <initial_glyph conn="3,6,4,3,4,5,8,2">
+      <action box="0,-2,10,2"/>
+     </initial_glyph>
+    </initial>
+    <state name="Clock">
+     <history type="deep" target="../2">
+      <history_glyph conn="6,30,3,2,5,-6"/>
+     </history>
+     <tran trig="ALARM" target="../../2">
+      <tran_glyph conn="39,45,2,1,10,-12">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state name="Ticking">
+      <entry brief="Display_Curr_Time">AlarmClock_display_curr_time(me,TICKING_CURR_TIME_ROW,TICKING_CURR_TIME_COL);</entry>
+      <tran trig="    SET" target="../../3/2">
+       <tran_glyph conn="24,18,1,3,12">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="    OK" target="../../3/3">
+       <tran_glyph conn="24,21,1,3,10,12,2">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <state_glyph node="10,14,14,10">
+       <entry box="1,2,6,2"/>
+      </state_glyph>
+     </state>
+     <state name="Settings">
+      <tran trig="ABORT" target="../../2">
+       <tran_glyph conn="33,38,3,2,-16,-14">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <tran trig="OK" target="../../2">
+       <tran_glyph conn="33,36,3,2,-20,-12">
+        <action box="0,-2,10,2"/>
+       </tran_glyph>
+      </tran>
+      <state name="Clock_Settings">
+       <state_glyph node="36,13,14,10"/>
+      </state>
+      <state name="Alarm_Settings">
+       <state_glyph node="36,27,14,10"/>
+      </state>
+      <state_glyph node="33,9,20,31"/>
+     </state>
+     <state_glyph node="6,6,51,39"/>
+    </state>
+    <state name="Alarm_Notify">
+     <tran trig="TRIG1" target="../../1" cpref="../../1/0">
+      <tran_glyph conn="11,55,3,3,-8,-25,2">
+       <action box="0,-2,10,2"/>
+      </tran_glyph>
+     </tran>
+     <state_glyph node="11,50,16,11"/>
+    </state>
+    <state_diagram size="141,93"/>
+   </statechart>
+  </class>
+  <operation name="AlarmClock_Ctor" type="void" visibility="0x00" properties="0x00">
+   <code>QHsm_ctor(&amp;AlarmClock_Obj.super, Q_STATE_CAST(&amp;AlarmClock_initial));</code>
+  </operation>
+  <directory name="../src">
+   <file name="AlarmClock_SM.cpp" properties="external"/>
+   <file name="AlarmClock_SM.h">
+    <text>#ifndef ALARM_CLOCK_H
+#define ALARM_CLOCK_H
+
+enum ClockAlarm_Settings{
+    SET_SIG=Q_USER_SIG,
+    OK_SIG,
+    ABORT_SIG,
+    ALARM_SIG,
+    TICK_SIG,
+    MAX_SIG
+};
+enum Time_Mode{
+    MODE_24H,
+    MODE_12H
+};
+enum Alarm_Status{
+    ALARM_OFF,
+    ALARM_ON
+};
+#define INITIAL_CURR_TIME    ((10UL * 3600UL * 10UL * 60UL * 10UL)*10UL)
+#define INITIAL_ALARM_TIME   (8UL * 3600UL)
+#define MAX_TIME    (864000UL)
+#define TICKING_CURR_TIME_ROW    0
+#define TICKING_CURR_TIME_COL    3
+#define GET_HOUR(seconds)     (seconds/3600UL)
+#define GET_MIN(seconds)      ((seconds/60UL)%60UL)
+#define GET_SEC(seconds)      (seconds % 60UL)
+#define DIGIT1(d)             (d/10U)
+#define DIGIT2(d)             (d%10U)
+$declare${HSMs::AlarmClock_Ctor}
+#endif</text>
+   </file>
+  </directory>
+ </package>
+</model>

@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "003Protimer"
+		},
+		{
+			"name": "Protimer_SH",
+			"path": "Protimer_SH"
+		},
+		{
+			"name": "Protimer_ST",
+			"path": "Protimer_ST"
+		}
+	],
+	"settings": {}
+}
